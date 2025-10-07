@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 98%; /* #FDFCF9 */
+    --foreground: 222 47% 11%; /* #111827 */
+    --card: 40 56% 94%; /* #F5EFE6 - Light Beige */
+    --card-foreground: 93 44% 22%; /* #28381C - Dark Greenish */
+    --popover: 40 33% 98%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 35 91% 53%; /* #F4991A */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 33% 94%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 40 33% 94%;
+    --muted-foreground: 222 47% 41%;
+    --accent: 340 82% 61%; /* #F43F5E - Rose 500 */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 56% 89%;
+    --input: 220 13% 91%; /* neutral-200 */
+    --ring: 35 91% 53%;
+    --chart-1: 35 91% 53%;
+    --chart-2: 93 44% 32%;
+    --chart-3: 35 80% 65%;
+    --chart-4: 93 30% 42%;
+    --chart-5: 35 75% 58%;
+    --radius: 0.75rem;
+    --sidebar-background: 40 56% 94%;
+    --sidebar-foreground: 93 44% 22%;
+    --sidebar-primary: 35 91% 53%;
+    --sidebar-primary-foreground: 93 44% 15%;
+    --sidebar-accent: 35 91% 53%;
+    --sidebar-accent-foreground: 93 44% 15%;
+    --sidebar-border: 40 56% 89%;
+    --sidebar-ring: 35 91% 53%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 40 33% 98%;
+    --card: 17 19% 19%; /* Brown */
+    --card-foreground: 0 0% 100%; /* White */
+    --popover: 222 47% 8%;
+    --popover-foreground: 40 33% 98%;
+    --primary: 35 91% 53%;
+    --primary-foreground: 93 44% 15%;
+    --secondary: 222 47% 18%;
+    --secondary-foreground: 40 33% 98%;
+    --muted: 222 47% 18%;
+    --muted-foreground: 40 33% 75%;
+    --accent: 340 82% 61%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 17 19% 24%;
+    --input: 222 47% 20%;
+    --ring: 35 91% 53%;
+    --chart-1: 35 91% 53%;
+    --chart-2: 93 44% 50%;
+    --chart-3: 35 80% 65%;
+    --chart-4: 93 30% 60%;
+    --chart-5: 35 75% 58%;
+    --sidebar-background: 93 20% 12%;
+    --sidebar-foreground: 40 56% 94%;
+    --sidebar-primary: 35 91% 53%;
+    --sidebar-primary-foreground: 93 44% 15%;
+    --sidebar-accent: 35 91% 53%;
+    --sidebar-accent-foreground: 93 44% 15%;
+    --sidebar-border: 93 20% 22%;
+    --sidebar-ring: 35 91% 53%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Almarai', sans-serif;
+  }
+}
