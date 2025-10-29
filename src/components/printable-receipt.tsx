@@ -137,8 +137,7 @@ export const PrintableReceipt = React.forwardRef<HTMLDivElement, PrintableReceip
                   <div className="col-2">{item.quantity}</div>
                   <div className="col-3">{Math.round(item.price * item.quantity).toLocaleString('ar-SA')}</div>
                 </div>
-                {item.notes && <div className="items-grid" style={{paddingBottom: '4px'}}><div className="col-1 item-notes">- {item.notes}</div></div>}
-              </React.Fragment>
+               </React.Fragment>
             ))}
             
             <div className="solid-hr"></div>
