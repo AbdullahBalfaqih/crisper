@@ -51,11 +51,16 @@ export async function GET(request: Request) {
                  d.driver_name,
                 (SELECT json_agg(
                     json_build_object(
-                        'id', p.id, 'name', p.name, 'quantity', oi.quantity, 'price', oi.price_per_item,
-                        'notes', oi.notes, 'imageUrl', p.image_url, 'categoryId', p.category_id,
+                        'id', COALESCE(p.id::text, ''), 
+                        'name', COALESCE(p.name, 'منتج غير معروف'), 
+                        'quantity', COALESCE(oi.quantity, 0), 
+                        'price', COALESCE(oi.price_per_item, 0),
+                        'notes', COALESCE(oi.notes, ''), 
+                        'imageUrl', COALESCE(p.image_url, ''), 
+                        'categoryId', COALESCE(p.category_id::text, ''),
                         'imageHint', ''
                     )
-                ) FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = o.id) as items
+                ) FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = o.id) as items
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN addresses a ON o.address_id = a.id
