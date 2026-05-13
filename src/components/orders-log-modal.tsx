@@ -109,7 +109,10 @@ export function OrdersLogModal({ isOpen, onClose }: OrdersLogModalProps) {
     setIsLoading(true);
     try {
         const response = await fetch('/api/orders');
-        if (!response.ok) throw new Error('Failed to fetch orders');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Failed to fetch orders');
+        }
         const data = await response.json();
         setOrders(data.map((o: any) => ({
             ...o,
@@ -117,8 +120,12 @@ export function OrdersLogModal({ isOpen, onClose }: OrdersLogModalProps) {
             total_amount: parseFloat(o.total_amount || 0),
             discount_amount: parseFloat(o.discount_amount || 0),
         })));
-    } catch(e) {
-        toast({ variant: "destructive", title: "خطأ", description: "فشل في جلب سجل الطلبات."});
+    } catch(e: any) {
+        toast({ 
+            variant: "destructive", 
+            title: "خطأ", 
+            description: `فشل في جلب سجل الطلبات: ${e.message}` 
+        });
     } finally {
         setIsLoading(false);
     }
