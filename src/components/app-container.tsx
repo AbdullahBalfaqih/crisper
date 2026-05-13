@@ -32,7 +32,7 @@ import { RaffleModal } from './raffle-modal';
 import { ComplaintsModal } from './complaints-modal';
 import { CustomersModal } from './customers-modal';
 import { EmailModal } from './email-modal';
-import { OnlineOrdersModal } from './online-orders-modal';
+import OnlineOrdersModal from './online-orders-modal';
 import { PeakHoursModal } from './peak-hours-modal';
 import { DailySummaryLogModal } from './daily-summary-log-modal';
 import { BanksModal } from './banks-modal';
