@@ -141,7 +141,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ 
             message: 'Error fetching orders', 
             error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            stack: error.stack
         }, { status: 500 });
     }
 }
