@@ -81,36 +81,50 @@ export async function GET(request: Request) {
         }
         
         if (isOnline) {
-             query += ` ORDER BY o.created_at ASC;`;
+             query += ` ORDER BY o.created_at ASC`;
         } else {
-            query += ` ORDER BY o.created_at DESC;`;
+            query += ` ORDER BY o.created_at DESC`;
         }
 
 
         const { rows } = await db.query(query, queryParams);
 
-        const formattedOrders = rows.map(order => ({
-            id: order.id,
-            date: new Date(order.created_at).toISOString(),
-            cashier: order.cashier,
-            items: order.items || [],
-            total_amount: parseFloat(order.total_amount),
-            discount_amount: parseFloat(order.discount_amount),
-            final_amount: parseFloat(order.final_amount),
-            payment_method: order.payment_method,
-            payment_status: (order.payment_method === 'تحويل بنكي' || order.payment_status === 'paid') ? 'paid' : 'unpaid',
-            status: order.status,
-            type: order.type,
-            customer_name: order.customer_name,
-            customer_phone: order.customer_phone,
-            order_notes: order.order_notes,
-            address_details: order.address_details,
-            latitude: order.latitude,
-            longitude: order.longitude,
-            driver_name: order.driver_name,
-            payment_proof_url: order.payment_proof_url,
-            bankName: order.payment_method === 'شبكة' ? (order.order_notes || '').replace('دفعة الشبكة: ', '') : undefined,
-        }));
+        const formattedOrders = rows.map(order => {
+            let dateStr = 'Invalid Date';
+            try {
+                if (order.created_at) {
+                    const d = new Date(order.created_at);
+                    if (!isNaN(d.getTime())) {
+                        dateStr = d.toISOString();
+                    }
+                }
+            } catch (e) {
+                console.error("Date parsing error:", e);
+            }
+
+            return {
+                id: order.id,
+                date: dateStr,
+                cashier: order.cashier || 'غير مسجل',
+                items: order.items || [],
+                total_amount: parseFloat(order.total_amount || 0),
+                discount_amount: parseFloat(order.discount_amount || 0),
+                final_amount: parseFloat(order.final_amount || 0),
+                payment_method: order.payment_method,
+                payment_status: (order.payment_method === 'تحويل بنكي' || order.payment_status === 'paid') ? 'paid' : 'unpaid',
+                status: order.status,
+                type: order.type,
+                customer_name: order.customer_name,
+                customer_phone: order.customer_phone,
+                order_notes: order.order_notes,
+                address_details: order.address_details,
+                latitude: order.latitude,
+                longitude: order.longitude,
+                driver_name: order.driver_name,
+                payment_proof_url: order.payment_proof_url,
+                bankName: order.payment_method === 'شبكة' ? (order.order_notes || '').replace('دفعة الشبكة: ', '') : undefined,
+            };
+        });
         
         return NextResponse.json(formattedOrders);
 
