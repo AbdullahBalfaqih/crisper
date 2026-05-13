@@ -126,7 +126,16 @@ export async function GET(request: Request) {
             };
         });
         
-        return NextResponse.json(formattedOrders);
+        const responseJson = {
+            orders: formattedOrders,
+            debugCount: rows.length
+        };
+        
+        return NextResponse.json(formattedOrders, {
+            headers: {
+                'X-Debug-Count': rows.length.toString()
+            }
+        });
 
     } catch (error: any) {
         console.error("Error fetching orders:", error);
