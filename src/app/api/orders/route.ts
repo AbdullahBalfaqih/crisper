@@ -2,11 +2,10 @@
 import { NextResponse } from 'next/server';
 import { db, setupDatabase } from '@/lib/db';
 import type { OrderItem } from '@/lib/types';
-import { format } from 'date-fns';
 
 export async function GET(request: Request) {
     try {
-        await setupDatabase();
+        // await setupDatabase(); // Commented out to avoid potential locks since DB is already up
         const { searchParams } = new URL(request.url);
         const isOnline = searchParams.get('online') === 'true';
         const userId = searchParams.get('userId');
@@ -103,7 +102,7 @@ export async function GET(request: Request) {
             }
 
             return {
-                id: order.id,
+                id: typeof order.id === 'string' ? parseInt(order.id, 10) : order.id,
                 date: dateStr,
                 cashier: order.cashier || 'غير مسجل',
                 items: order.items || [],
