@@ -1,11 +1,12 @@
 // src/app/api/orders/route.ts
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, setupDatabase } from '@/lib/db';
 import type { OrderItem } from '@/lib/types';
 import { format } from 'date-fns';
 
 export async function GET(request: Request) {
     try {
+        await setupDatabase();
         const { searchParams } = new URL(request.url);
         const isOnline = searchParams.get('online') === 'true';
         const userId = searchParams.get('userId');
@@ -113,9 +114,13 @@ export async function GET(request: Request) {
         
         return NextResponse.json(formattedOrders);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error fetching orders:", error);
-        return NextResponse.json({ message: 'Error fetching orders' }, { status: 500 });
+        return NextResponse.json({ 
+            message: 'Error fetching orders', 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
     }
 }
 
