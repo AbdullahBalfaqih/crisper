@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import type { OrderItem } from '@/lib/types';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -20,505 +20,542 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Search, Trash2, Printer, FileDown, RotateCcw, ArrowLeftRight, Pencil, Copy, ListX, BarChart2, Archive, Loader2, Globe, Truck } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { PrintableReceipt } from './printable-receipt';
-import { KitchenReceipt } from './kitchen-receipt';
+import { Badge } from '@/components/ui/badge';
+import { Check, X, RefreshCw, FileText, Server, Clock, Utensils, Bike, Phone, CreditCard, Mail, MapPin, ClipboardList, Trash2, CheckCheck, PackageCheck, Image as ImageIcon, Printer, Loader2, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EndOfDayDialog } from './end-of-day-dialog';
-import { generateReportHtml } from '@/services/export-service';
-import { DailySummaryLogModal } from './daily-summary-log-modal';
-import type { DailySummary } from './daily-summary-log-modal';
-import { SummaryReportModal } from './summary-report-modal';
-import { format as formatDate, isValid } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { OrderDetailsSheet, type OnlineOrder, OrderStatus, OrderType } from './order-details-sheet';
+import { AssignDriverDialog } from './assign-driver-dialog';
+import { PrintOnlineReceipt } from './print-online-receipt';
+import { KitchenReceipt } from './kitchen-receipt';
+import type { OrderItem } from '@/lib/types';
+import { useAuth } from '@/hooks/use-auth';
+import { DeliveryMapModal } from './delivery-map-modal';
 
-export type Order = {
-  id: number;
-  date: string;
-  cashier: string;
-  items: OrderItem[];
-  total_amount: number;
-  discount_amount: number;
-  final_amount: number;
-  payment_method: 'نقدي' | 'شبكة' | 'بطاقة' | 'ضيافة' | 'تحويل بنكي';
-  status: 'new' | 'preparing' | 'ready' | 'out-for-delivery' | 'completed' | 'rejected';
-  type: 'delivery' | 'pickup';
-  order_notes?: string;
-  bankName?: string;
-};
-
-interface ReceiptData {
-  receiptNumber: string;
-  date: string;
-  time: string;
-  cashierName: string;
-  paymentMethod: Order['payment_method'];
-  logoUrl: string | null;
-  barcodeUrl: string | null;
+type DriverInfo = {
+    name: string;
+    phone: string;
 }
 
-const PrintComponent = React.forwardRef<HTMLDivElement, { order: Order, receiptData: ReceiptData, logoUrl: string | null, barcodeUrl: string | null }>(
-  ({ order, receiptData, logoUrl, barcodeUrl }, ref) => {
-    return (
-      <div ref={ref}>
-        <div className="break-after-page">
-          <KitchenReceipt orderItems={order.items} {...receiptData} logoUrl={logoUrl} />
-        </div>
-        <PrintableReceipt orderItems={order.items} discount={order.discount_amount} {...receiptData} logoUrl={logoUrl} barcodeUrl={barcodeUrl} />
-      </div>
-    );
-  }
-);
-PrintComponent.displayName = 'PrintComponent';
-
-
-type ActionType = 'deleteInvoice' | 'clearList' | 'refund' | null;
-
-interface OrdersLogModalProps {
+interface OnlineOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const ITEMS_PER_PAGE = 10;
+const allStatuses: OrderStatus[] = ['new', 'preparing', 'ready', 'out-for-delivery', 'completed', 'rejected'];
+
+const statusConfig: { [key in OrderStatus | 'out-for-delivery']: { label: string; icon: React.ElementType; color: string; hoverColor: string } } = {
+    new: { label: 'جديد', icon: Server, color: 'bg-orange-500', hoverColor: 'hover:bg-orange-600' },
+    preparing: { label: 'قيد التجهيز', icon: Clock, color: 'bg-blue-500', hoverColor: 'hover:bg-blue-600' },
+    ready: { label: 'جاهز', icon: PackageCheck, color: 'bg-yellow-500', hoverColor: 'hover:bg-yellow-600' },
+    'out-for-delivery': { label: 'قيد التوصيل', icon: Bike, color: 'bg-indigo-500', hoverColor: 'hover:bg-indigo-600'},
+    completed: { label: 'مكتمل', icon: CheckCheck, color: 'bg-green-500', hoverColor: 'hover:bg-green-600' },
+    rejected: { label: 'مرفوض', icon: X, color: 'bg-red-500', hoverColor: 'hover:bg-red-600' }
+};
+
+interface ReceiptData {
+    receiptNumber: string;
+    date: string;
+    time: string;
+    cashierName: string;
+    paymentMethod: any;
+    logoUrl: string | null;
+    barcodeUrl: string | null;
+}
+
+const PrintOnlineComponent = React.forwardRef<HTMLDivElement, { order: OnlineOrder, receiptData: ReceiptData }>(
+    ({ order, receiptData }, ref) => {
+        const orderItems: OrderItem[] = useMemo(() => {
+            return order.items.map((item, index) => {
+                return {
+                    id: `online-item-${index}`,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    notes: item.notes,
+                    categoryId: 'online',
+                    imageUrl: '',
+                    imageHint: '',
+                };
+            });
+        }, [order]);
+
+        return (
+             <div ref={ref}>
+                <div style={{ pageBreakAfter: 'always' }}>
+                    <KitchenReceipt orderItems={orderItems} {...receiptData} />
+                </div>
+                <PrintOnlineReceipt orderItems={orderItems} discount={0} {...receiptData} />
+            </div>
+        );
+    }
+);
+PrintOnlineComponent.displayName = 'PrintOnlineComponent';
 
 
-export function OrdersLogModal({ isOpen, onClose }: OrdersLogModalProps) {
-  const [orders, setOrders] = useState<Order[]>([]);
+export function OnlineOrdersModal({ isOpen, onClose }: OnlineOrdersModalProps) {
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<OnlineOrder[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<OnlineOrder | null>(null);
+  const [orderToPrint, setOrderToPrint] = useState<OnlineOrder | null>(null);
+  const [orderToAssign, setOrderToAssign] = useState<OnlineOrder | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [locationToShow, setLocationToShow] = useState<{lat: number, lng: number} | null>(null);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [activeTypeFilter, setActiveTypeFilter] = useState<OrderType>('delivery');
+  const [alertContent, setAlertContent] = useState<{ title: string; description: string; onConfirm: () => void; } | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [barcodeUrl, setBarcodeUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [actionType, setActionType] = useState<ActionType>(null);
-  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
-  const [isEndOfDayOpen, setIsEndOfDayOpen] = useState(false);
-  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  const [isDailySummaryLogOpen, setIsDailySummaryLogOpen] = useState(false);
-  const [showSummaryFooter, setShowSummaryFooter] = useState(false);
-  const [logo, setLogo] = useState<string | null>(null);
-  const [barcode, setBarcode] = useState<string | null>(null);
-  const { toast } = useToast();
-  const printRef = useRef<HTMLDivElement>(null);
-  
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchOrders = useCallback(async () => {
+
+  const { toast } = useToast();
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  const fetchOnlineOrders = useCallback(async () => {
     setIsLoading(true);
     try {
-        const response = await fetch('/api/orders');
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || errorData.message || 'Failed to fetch orders');
-        }
-        const data = await response.json();
-        setOrders(data.map((o: any) => ({
-            ...o,
-            final_amount: parseFloat(o.final_amount || 0),
-            total_amount: parseFloat(o.total_amount || 0),
-            discount_amount: parseFloat(o.discount_amount || 0),
-        })));
-    } catch(e: any) {
-        toast({ 
-            variant: "destructive", 
-            title: "خطأ في الجلب", 
-            description: `Debug Info: ${e.message}` 
-        });
+      const response = await fetch('/api/orders?online=true');
+      if (!response.ok) throw new Error('Failed to fetch online orders');
+      const data = await response.json();
+      setOrders(data.map((o: any) => ({...o, date: new Date(o.date)})));
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في جلب طلبات الأونلاين.' });
     } finally {
         setIsLoading(false);
     }
   }, [toast]);
   
-  useEffect(() => {
-      if (isOpen) {
-          fetchOrders();
-          const fetchSettings = async () => {
-              try {
-                  const res = await fetch('/api/settings');
-                  if(res.ok) {
-                      const settings = await res.json();
-                      setLogo(settings.logo_base64 || null);
-                      setBarcode(settings.barcode_base64 || null);
-                  }
-              } catch (error) {
-                  console.error("Failed to fetch settings for receipt", error);
-              }
+   useEffect(() => {
+    if (isOpen) {
+      fetchOnlineOrders();
+      const fetchSettings = async () => {
+        try {
+          const res = await fetch('/api/settings');
+          if (res.ok) {
+            const settings = await res.json();
+            setLogoUrl(settings.logo_base64 || null);
+            setBarcodeUrl(settings.barcode_base64 || null);
           }
-          fetchSettings();
-      }
-  }, [isOpen, fetchOrders]);
-
-
-  const selectedOrder = orders.find(order => order.id === selectedOrderId);
-  
-  const filteredOrders = useMemo(() => {
-    if (!orders) return [];
-    return orders
-        .filter(order => order.id.toString().includes(searchQuery));
-  }, [orders, searchQuery]);
-  
-  const { totalOverall, totalCash, totalNetwork, refundedCount } = useMemo(() => {
-    return filteredOrders.reduce((acc, order) => {
-        if (order.status === 'completed') {
-            acc.totalOverall += order.final_amount;
-             if (order.payment_method === 'نقدي') {
-                acc.totalCash += order.final_amount;
-            } else if (order.payment_method === 'شبكة' || order.payment_method === 'تحويل بنكي') {
-                acc.totalNetwork += order.final_amount;
-            }
-        } else if (order.status === 'rejected') {
-            acc.refundedCount += 1;
+        } catch (e) {
+          console.error("Failed to fetch settings for online orders");
         }
+      };
+      fetchSettings();
+    }
+  }, [isOpen, fetchOnlineOrders]);
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+        const typeMatch = o.type === activeTypeFilter;
+        let statusMatch = activeStatusFilter === 'all' ? o.status !== 'rejected' : o.status === activeStatusFilter;
         
-        return acc;
-    }, {
-      totalOverall: 0,
-      totalCash: 0,
-      totalNetwork: 0,
-      refundedCount: 0,
+        return typeMatch && statusMatch;
     });
-  }, [filteredOrders]);
+  }, [orders, activeStatusFilter, activeTypeFilter]);
 
-  const paginatedOrders = useMemo(() => {
-      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-      return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
-
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-  
-  useEffect(() => {
-    if (selectedOrder) {
-        const orderDate = new Date(selectedOrder.date);
-        setReceiptData({
-            receiptNumber: selectedOrder.id.toString(),
-            date: new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(orderDate),
-            time: new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }).format(orderDate),
-            cashierName: selectedOrder.cashier,
-            paymentMethod: selectedOrder.payment_method,
-            logoUrl: logo,
-            barcodeUrl: barcode
-        })
-    }
-  }, [selectedOrder, logo, barcode])
-
-
-  const handlePrint = () => {
-    const node = printRef.current;
-    if (node) {
-      const printContent = node.innerHTML;
-      const printWindow = window.open('', '_blank');
-
-      if (printWindow) {
-          printWindow.document.write('<html><head><title>Print</title>');
-          
-          printWindow.document.write(`
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-          `);
-
-          printWindow.document.write('<style>');
-          printWindow.document.write(`
-              body { 
-                  font-family: 'Cairo', 'Almarai', sans-serif;
-                  margin: 0; 
-                  -webkit-print-color-adjust: exact; 
-                  print-color-adjust: exact; 
-              }
-              @page { 
-                  size: 80mm auto; 
-                  margin: 0;
-              }
-          `);
-          printWindow.document.write('</style></head><body>');
-          printWindow.document.write(printContent);
-          printWindow.document.write('</body></html>');
-          printWindow.document.close();
-
-          printWindow.onload = () => {
-              printWindow.focus();
-              printWindow.print();
-              printWindow.close();
-          };
-      }
-    }
-  };
-
-  const handleActionClick = (action: ActionType) => {
-    if (!selectedOrderId && action !== 'clearList') {
-        toast({ variant: 'destructive', title: 'خطأ', description: 'يرجى تحديد فاتورة أولاً.'});
+  const openWhatsApp = (phone: string, message: string) => {
+    if (!phone) {
+        toast({variant: 'destructive', title: 'خطأ', description: 'رقم هاتف العميل/السائق غير متوفر.'});
         return;
     }
-    if (action === 'refund' && selectedOrder?.status === 'rejected') {
-        toast({ variant: 'destructive', title: 'خطأ', description: 'هذه الفاتورة مسترجعة بالفعل.'});
-        return;
-    }
-    setActionType(action);
-    setIsAlertOpen(true);
-  };
-  
-  const handleConfirmAction = async () => {
-    if (!actionType) return;
-    
-    setIsLoading(true);
-    try {
-        let description = '';
-        if (actionType === 'clearList') {
-            setOrders([]);
-            description = `تم مسح جميع الفواتير من العرض الحالي.`;
-        } else if (actionType === 'deleteInvoice' && selectedOrderId) {
-            const response = await fetch(`/api/orders/${selectedOrderId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete order');
-            description = `تم حذف الفاتورة رقم ${selectedOrderId}.`;
-        } else if (actionType === 'refund' && selectedOrder) {
-            const response = await fetch(`/api/orders/${selectedOrder.id}`, { 
+    // Remove '+' and spaces from phone number for the URL
+    const sanitizedPhone = phone.replace(/\s+/g, '').replace('+', '');
+    window.open(`https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  }
+
+  const handleUpdateStatus = (order: OnlineOrder, newStatus: OrderStatus) => {
+    setAlertContent({
+      title: `تأكيد تحديث الحالة`,
+      description: `هل أنت متأكد أنك تريد تغيير حالة الطلب ${order.id} إلى "${statusConfig[newStatus].label}"؟`,
+      onConfirm: async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/orders/${order.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'rejected' })
+                body: JSON.stringify({ status: newStatus }),
             });
-            if (!response.ok) throw new Error('Failed to refund order');
-            description = `تم إرجاع الفاتورة رقم ${selectedOrder.id}. تم إعادة المنتجات إلى المخزون.`;
-        }
-        
-        toast({ title: 'تم بنجاح', description });
-        if(actionType !== 'clearList') await fetchOrders();
-        setSelectedOrderId(null);
+            if (!response.ok) throw new Error('Failed to update status');
 
-    } catch (e: any) {
-        toast({ variant: "destructive", title: "خطأ", description: e.message || "فشل تنفيذ الإجراء." });
+            await fetchOnlineOrders(); // Refetch to get the latest state
+
+            toast({
+                title: 'تم تحديث حالة الطلب',
+                description: `تم تحديث حالة الطلب ${order.id} إلى ${statusConfig[newStatus].label}.`
+            });
+            
+            // --- WhatsApp Notification Logic ---
+            let message = '';
+            if (newStatus === 'preparing') {
+                message = `مرحباً ${order.customer_name}، تم قبول طلبك #${order.id} وهو الآن قيد التجهيز.`;
+            } else if (newStatus === 'rejected') {
+                message = `مرحباً ${order.customer_name}، نعتذر عن عدم تمكننا من تلبية طلبك #${order.id} في الوقت الحالي.`;
+            } else if (newStatus === 'ready' && order.type === 'pickup') {
+                message = `مرحباً ${order.customer_name}، طلبك #${order.id} جاهز للاستلام من الفرع.`;
+            }
+
+            if (message && order.customer_phone) {
+                openWhatsApp(order.customer_phone, message);
+            }
+            // --- End WhatsApp Logic ---
+
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'خطأ', description: 'فشل تحديث حالة الطلب.' });
+        } finally {
+            setAlertContent(null);
+            setIsLoading(false);
+        }
+      },
+    });
+  }
+
+  const handleRejectOrder = (order: OnlineOrder) => {
+    handleUpdateStatus(order, 'rejected');
+  }
+
+  const handleDeleteOrder = (order: OnlineOrder) => {
+    setAlertContent({
+      title: 'تأكيد الحذف',
+      description: `هل أنت متأكد أنك تريد حذف الطلب ${order.id} نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`,
+      onConfirm: async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Failed to delete order');
+            toast({
+                variant: 'destructive',
+                title: 'تم حذف الطلب',
+                description: `تم حذف الطلب ${order.id} نهائياً.`
+            });
+            await fetchOnlineOrders();
+        } catch(e) {
+            toast({ variant: 'destructive', title: 'خطأ', description: 'فشل حذف الطلب.' });
+        } finally {
+            setAlertContent(null);
+            setIsLoading(false);
+        }
+      },
+    });
+  }
+
+  const handleShowDetails = (order: OnlineOrder) => {
+    setSelectedOrder(order);
+    setIsSheetOpen(true);
+  }
+  
+  const handleAssignDriver = async (order: OnlineOrder, driver: DriverInfo, commission: number) => {
+    setIsLoading(true);
+    try {
+        const response = await fetch(`/api/deliveries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                orderId: order.id, 
+                driverName: driver.name,
+                driverPhone: driver.phone,
+                commission: commission,
+            }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'فشل إسناد المهمة للسائق.');
+        }
+
+        toast({
+            title: 'تم إسناد المهمة',
+            description: `تم إسناد الطلب ${order.id} للسائق ${driver.name}.`
+        });
+        
+        await fetchOnlineOrders();
+        
+        // --- WhatsApp Notification Logic ---
+        // 1. Message to Driver
+        const mapLink = `https://www.google.com/maps/search/?api=1&query=${order.latitude},${order.longitude}`;
+        const driverMessage = `
+طلب توصيل جديد:
+- العميل: ${order.customer_name}
+- الهاتف: ${order.customer_phone}
+- العنوان: ${order.address_details}
+- الموقع على الخريطة: ${mapLink}
+        `;
+        if (driver.phone) openWhatsApp(driver.phone, driverMessage.trim());
+        
+        // 2. Message to Customer
+        const customerMessage = `مرحباً ${order.customer_name}، طلبك #${order.id} في الطريق إليك مع السائق ${driver.name}.`;
+        if (order.customer_phone) openWhatsApp(order.customer_phone, customerMessage);
+        // --- End WhatsApp Logic ---
+        
+    } catch(e: any) {
+         toast({ variant: 'destructive', title: 'خطأ', description: e.message });
     } finally {
-        setIsAlertOpen(false);
-        setActionType(null);
+        setIsAssignDialogOpen(false);
+        setOrderToAssign(null);
         setIsLoading(false);
     }
-  };
+  }
   
-  const getActionDetails = () => {
-    switch (actionType) {
-      case 'deleteInvoice': return { title: 'مسح الفاتورة', description: `هل أنت متأكد أنك تريد مسح الفاتورة رقم ${selectedOrderId}؟ لا يمكن التراجع عن هذا الإجراء.` };
-      case 'clearList': return { title: 'مسح القائمة', description: 'هل أنت متأكد أنك تريد مسح جميع الفواتير من القائمة؟' };
-      case 'refund': return { title: 'إرجاع الفاتورة', description: `هل أنت متأكد أنك تريد إرجاع الفاتورة رقم ${selectedOrderId}؟ سيتم إعادة المنتجات إلى المخزون.` };
-      default: return { title: '', description: '' };
-    }
-  };
-    
-  const handleCloseDay = () => {
-    setOrders([]); // Visually clear the list for the user
-    toast({
-      title: 'تم إغلاق اليومية بنجاح',
-      description: 'تم أرشفة السجل وإعادة تعيين الترقيم. النظام جاهز ليوم جديد.',
-    });
-    setIsEndOfDayOpen(false);
-  };
-  
-  const handleExportToHtml = async () => {
-    toast({ title: 'جاري إنشاء التقرير...', description: 'يتم تجهيز تقرير HTML.' });
+  const handlePrint = (order: OnlineOrder) => {
+    setOrderToPrint(order);
+    setTimeout(() => {
+        const printContent = receiptRef.current;
+        const printWindow = window.open('', '_blank');
+        if (printWindow && printContent) {
+            printWindow.document.write('<html><head><title>Print</title>');
+            printWindow.document.write(`
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+            `);
+            printWindow.document.write('<style>');
+            printWindow.document.write(`
+                body { 
+                    font-family: 'Cairo', 'Almarai', sans-serif;
+                    margin: 0;
+                    direction: rtl;
+                    -webkit-print-color-adjust: exact; 
+                    print-color-adjust: exact;
+                }
+                @page { 
+                    size: 80mm auto; 
+                    margin: 0mm;
+                }
+            `);
+            printWindow.document.write('</style></head><body>');
+            printWindow.document.write(printContent.innerHTML);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
 
-    try {
-      const reportHtml = await generateReportHtml(filteredOrders, undefined, logo || undefined);
-      const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'sales-report.html';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      toast({ title: 'اكتمل الإنشاء', description: 'تم تنزيل التقرير.' });
-    } catch (error) {
-      console.error("Export failed:", error);
-      toast({ variant: "destructive", title: 'فشل الإنشاء', description: 'حدث خطأ أثناء إنشاء تقرير HTML.' });
+            printWindow.onload = () => {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+                setOrderToPrint(null);
+            };
+        } else {
+             setOrderToPrint(null);
+        }
+    }, 100);
+  }
+
+  const handleShowMap = (order: OnlineOrder) => {
+    if (order.latitude && order.longitude) {
+      setLocationToShow({ lat: parseFloat(order.latitude), lng: parseFloat(order.longitude) });
+      setIsMapModalOpen(true);
+    } else {
+      toast({ variant: 'destructive', title: 'خطأ', description: 'إحداثيات الموقع غير متوفرة لهذا الطلب.' });
     }
   }
 
+  const getStatusBadge = (status: 'paid' | 'unpaid') => {
+    const paymentStatus = (status === 'paid') ? 'paid' : 'unpaid';
+    return paymentStatus === 'paid' ? <Badge variant="default" className="bg-green-600">مدفوع</Badge> : <Badge variant="destructive">غير مدفوع</Badge>;
+  }
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
-          {isLoading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-8 w-8 animate-spin"/></div>}
-          <DialogHeader className="p-4 bg-primary text-primary-foreground">
-            <DialogTitle>سجل الطلبات</DialogTitle>
-            <DialogDescription className="text-primary-foreground/90">
-              ابحث عن الطلبات السابقة وقم بإدارتها.
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="flex-1">
-            <div className="grid grid-cols-12 gap-6 pt-4 p-4">
-              {/* Main content - Orders Table */}
-              <div className="col-span-12 md:col-span-9 flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
-                  <Input
-                    placeholder="بحث عن فاتورة..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="max-w-sm"
-                  />
-                  <Button variant="outline" size="icon">
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Card className="flex-1 flex flex-col overflow-hidden">
-                  <CardContent className="p-0 flex-1">
-                    <ScrollArea className="h-[calc(100vh-25rem)]">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-primary hover:bg-primary/90">
-                            <TableHead className="text-primary-foreground text-center">رقم الفاتورة</TableHead>
-                            <TableHead className="text-primary-foreground text-center">تاريخ الفاتورة</TableHead>
-                            <TableHead className="text-primary-foreground text-center">نوع الطلب</TableHead>
-                            <TableHead className="text-primary-foreground text-center">الكاشير</TableHead>
-                            <TableHead className="text-primary-foreground text-center">المنتجات</TableHead>
-                            <TableHead className="text-primary-foreground text-center">الإجمالي</TableHead>
-                            <TableHead className="text-primary-foreground text-center">الخصم</TableHead>
-                            <TableHead className="text-primary-foreground text-center">الصافي</TableHead>
-                            <TableHead className="text-primary-foreground text-center">الدفع</TableHead>
-                            <TableHead className="text-primary-foreground text-center">ملاحظات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {paginatedOrders.map((order) => {
-                            const orderDate = new Date(order.date);
-                            const displayDate = isValid(orderDate)
-                              ? formatDate(orderDate, 'dd/MM/yyyy, hh:mm a')
-                              : 'Invalid Date';
-                            
-                            let notes = order.order_notes || '-';
-                             if (order.payment_method === 'تحويل بنكي' && order.order_notes) {
-                                const bankMatch = order.order_notes.match(/تحويل بنكي عبر:\s*(.*)/);
-                                if (bankMatch) {
-                                  notes = `تحويل: ${bankMatch[1]}`;
-                                }
-                            } else if (order.payment_method === 'شبكة' && order.bankName) {
-                                notes = `شبكة: ${order.bankName}`;
-                            }
-
-
-                            const orderTypeDisplay = order.type === 'pickup' ? 'محلي' : 'أونلاين';
-                            return (
-                              <TableRow
-                                key={order.id}
-                                onClick={() => setSelectedOrderId(order.id)}
-                                className={cn(
-                                  'cursor-pointer',
-                                  selectedOrderId === order.id && 'bg-primary/20',
-                                  order.status === 'rejected' && 'line-through text-muted-foreground/50'
-                                )}
-                              >
-                                <TableCell className="font-medium text-center">{order.id}</TableCell>
-                                <TableCell className="text-center">{displayDate}</TableCell>
-                                <TableCell className="text-center">{orderTypeDisplay}</TableCell>
-                                <TableCell className="text-center">{order.cashier}</TableCell>
-                                <TableCell className="text-center">{order.items.map(i => `${i.name} (${i.quantity})`).join(', ')}</TableCell>
-                                <TableCell className="text-center">{order.total_amount?.toLocaleString('ar-SA')}</TableCell>
-                                <TableCell className="text-center text-red-600">{order.discount_amount > 0 ? `${order.discount_amount.toLocaleString('ar-SA')}` : '-'}</TableCell>
-                                <TableCell className="text-center font-bold">{order.final_amount?.toLocaleString('ar-SA')}</TableCell>
-                                <TableCell className="text-center">{order.payment_method}</TableCell>
-                                <TableCell className="text-center">{notes}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </ScrollArea>
-                  </CardContent>
-                  {showSummaryFooter && (
-                    <CardFooter className="p-2 border-t flex justify-between items-center">
-                        <div className="flex-grow flex items-center gap-4 text-sm font-semibold">
-                          <span>الإجمالي: <span className="text-green-600">{totalOverall.toLocaleString('ar-SA')} ر.ي</span></span>
-                          <span>الكاش: <span className="text-blue-600">{totalCash.toLocaleString('ar-SA')} ر.ي</span></span>
-                          <span>الشبكة: <span className="text-purple-600">{totalNetwork.toLocaleString('ar-SA')} ر.ي</span></span>
-                          <span>المسترجع: <span className="text-red-600">{refundedCount}</span></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                                السابق
-                            </Button>
-                            <span className="text-sm font-medium">
-                              صفحة {currentPage} من {totalPages}
-                            </span>
-                            <Button variant="outline" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-                                التالي
-                            </Button>
-                        </div>
-                    </CardFooter>
-                   )}
-                </Card>
-              </div>
-
-              {/* Action Panel */}
-              <div className="col-span-12 md:col-span-3 flex flex-col gap-4">
-                  <Card>
-                      <CardHeader>
-                          <CardTitle>الإجراءات</CardTitle>
-                      </CardHeader>
-                      <CardContent className="grid grid-cols-2 gap-3">
-                          <Button variant="outline" className="flex-col h-20 text-center" onClick={() => handleActionClick('deleteInvoice')}><Trash2 className="mb-1" /><span>مسح الفاتورة</span></Button>
-                          <Button variant="outline" className="flex-col h-20 text-center" onClick={() => handleActionClick('clearList')}><ListX className="mb-1" /><span>مسح القائمة</span></Button>
-                          <Button variant="outline" className="flex-col h-20 text-center text-destructive border-destructive" onClick={() => handleActionClick('refund')}><ArrowLeftRight className="mb-1" /><span>مسترجع</span></Button>
-                          <Button variant="outline" className="flex-col h-20 text-center" onClick={fetchOrders}><RotateCcw className="mb-1" /><span>تحديث</span></Button>
-                          <Button variant="outline" className="flex-col h-20 text-center" onClick={handleExportToHtml}><FileDown className="mb-1" /><span>تصدير</span></Button>
-                          <Button variant="outline" className="flex-col h-20 text-center" onClick={() => setIsEndOfDayOpen(true)}><Pencil className="mb-1" /><span>إغلاق اليومية</span></Button>
-                      </CardContent>
-                  </Card>
-                  <Card>
-                      <CardHeader>
-                        <CardTitle>الطباعة والملخصات</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-3 grid grid-cols-1 gap-3">
-                          <Button variant="secondary" className="h-12" onClick={handlePrint} disabled={!selectedOrder}><Printer className="mr-2" /> طباعة</Button>
-                          <Button variant="secondary" className="h-12" onClick={() => toast({ title: "تم نسخ الفاتورة" })}><Copy className="mr-2" /> نسخ الفاتورة</Button>
-                          <Button variant="secondary" className="h-12" onClick={() => setShowSummaryFooter(prev => !prev)}><BarChart2 className="mr-2" /> {showSummaryFooter ? 'إخفاء' : 'إظهار'} الملخص</Button>
-                          <Button variant="secondary" className="h-12" onClick={() => setIsSummaryModalOpen(true)}><FileDown className="mr-2" /> عرض تقرير الملخص</Button>
-                          <Button variant="secondary" className="h-12" onClick={() => setIsDailySummaryLogOpen(true)}><Archive className="mr-2" /> سجل الملخصات</Button>
-                      </CardContent>
-                  </Card>
-              </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-[95vw] h-[95vh] flex flex-col p-0">
+        {isLoading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-8 w-8 animate-spin"/></div>}
+        <DialogHeader className="p-4 bg-primary text-primary-foreground">
+          <DialogTitle className="text-2xl flex items-center gap-2"><Server /> طلبات الأونلاين</DialogTitle>
+          <DialogDescription className="text-primary-foreground/90">
+            إدارة وقبول الطلبات الواردة من المنصات الإلكترونية.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="p-4 space-y-4">
+            <div className="flex justify-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <Button onClick={() => setActiveTypeFilter('delivery')} variant={activeTypeFilter === 'delivery' ? 'secondary' : 'ghost'} className={cn("flex-1 h-12 ring-2 ring-transparent", activeTypeFilter === 'delivery' && "ring-primary")}>طلبات التوصيل</Button>
+                <Button onClick={() => setActiveTypeFilter('pickup')} variant={activeTypeFilter === 'pickup' ? 'secondary' : 'ghost'} className={cn("flex-1 h-12 ring-2 ring-transparent", activeTypeFilter === 'pickup' && "ring-primary")}>طلبات الحجز (استلام)</Button>
             </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-      
-      <div className="hidden">
-        {selectedOrder && receiptData && <PrintComponent ref={printRef} order={selectedOrder} receiptData={receiptData} logoUrl={logo} barcodeUrl={barcode} />}
-      </div>
-      
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+
+            <div className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-lg">
+                <div className="flex gap-1 sm:gap-2 flex-wrap">
+                    <Button onClick={() => setActiveStatusFilter('all')} variant={activeStatusFilter === 'all' ? 'secondary' : 'ghost'} className="h-8 sm:h-auto">الكل</Button>
+                    {Object.entries(statusConfig).filter(([key]) => key !== 'rejected').map(([status, config]) => (
+                        <Button key={status} onClick={() => setActiveStatusFilter(status as OrderStatus)} variant={activeStatusFilter === status ? 'secondary' : 'ghost'} className={cn('h-8 sm:h-auto', activeStatusFilter === status ? config.color + ' text-white' : '')}>{config.label}</Button>
+                    ))}
+                </div>
+                <Button variant="ghost" onClick={fetchOnlineOrders}><RefreshCw className="ml-2 h-4 w-4"/> تحديث</Button>
+            </div>
+        </div>
+
+        <ScrollArea className="flex-1 mt-0 px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredOrders.map(order => {
+                    const effectiveStatus: OrderStatus | 'out-for-delivery' = order.status;
+                    const config = statusConfig[effectiveStatus] || statusConfig.new;
+
+                    return (
+                        <Card key={order.id} className={cn("flex flex-col border-2 hover:border-primary/70 transition-colors", `border-${config.color.replace('bg-', '')}`)}>
+                           <CardHeader className="flex-row items-start justify-between gap-4 p-4">
+                                <Badge className={cn("text-white", config.color)}>{config.label}</Badge>
+                                <div className="flex-1 text-right">
+                                    <CardTitle className="text-lg">{order.customer_name}</CardTitle>
+                                    <p className="text-sm text-muted-foreground">{new Date(order.date).toLocaleTimeString('ar-SA')}</p>
+                                </div>
+                           </CardHeader>
+                           <CardContent className="p-4 pt-0 space-y-3 text-sm flex-1 text-right">
+                               {order.customer_phone && (
+                                   <div className="flex items-start justify-end gap-3 text-foreground">
+                                       <Phone className="w-4 h-4 text-primary mt-1"/>
+                                       <span className="flex-1 text-right">{order.customer_phone}</span>
+                                   </div>
+                               )}
+                               <div className="flex items-start justify-end gap-3 text-foreground">
+                                   <Utensils className="w-4 h-4 text-primary mt-1"/>
+                                   <div className="flex-1">
+                                       {order.items.map((item: any, index: number) => (
+                                          <div key={index} className="flex flex-col text-right">
+                                            <span>{item.quantity}x {item.name}</span>
+                                            {item.notes && <span className="text-xs text-yellow-600/80 mr-2">- {item.notes}</span>}
+                                          </div>
+                                       ))}
+                                   </div>
+                               </div>
+                               <div className="flex items-center justify-end gap-3 text-foreground">
+                                   <CreditCard className="w-4 h-4 text-primary"/>
+                                   <div className="flex items-center gap-2 flex-1 justify-end">
+                                      {order.payment_proof_url && <button onClick={() => handleShowDetails(order)}><ImageIcon className="w-4 h-4 text-primary"/></button>}
+                                      <span>{order.payment_method} - {getStatusBadge(order.payment_status)}</span>
+                                   </div>
+                               </div>
+                               {order.type === 'delivery' && order.address_details && (
+                                <div className="flex items-start justify-end gap-3 text-foreground">
+                                   <Truck className="w-4 h-4 text-primary mt-1"/>
+                                   <span className="flex-1 text-right">
+                                        {order.address_details}
+                                   </span>
+                               </div>
+                               )}
+                               {order.driver_name && (
+                                 <div className="flex items-start justify-end gap-3 text-foreground">
+                                     <Bike className="w-4 h-4 text-primary mt-1"/>
+                                    <span className="flex-1 text-right font-semibold">السائق: {order.driver_name}</span>
+                                 </div>
+                               )}
+                               {order.order_notes && (
+                                <div className="flex items-start justify-end gap-3 text-foreground">
+                                    <ClipboardList className="w-4 h-4 text-primary mt-1"/>
+                                   <span className="flex-1 text-right">{order.order_notes}</span>
+                               </div>
+                               )}
+                           </CardContent>
+                            <CardFooter className="p-2 border-t mt-auto flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => handleShowDetails(order)}><FileText className="h-5 w-5" /></Button>
+                                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => handleDeleteOrder(order)}><Trash2 className="h-5 w-5 text-destructive" /></Button>
+                                    {order.status !== 'new' && order.status !== 'rejected' && (
+                                        <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => handlePrint(order)}>
+                                            <Printer className="h-5 w-5 text-sky-500"/>
+                                        </Button>
+                                    )}
+                                    {order.type === 'delivery' && (
+                                         <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => handleShowMap(order)}>
+                                            <MapPin className="h-5 w-5 text-blue-500"/>
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                     <Button size="sm" variant="destructive" className="px-4" onClick={() => handleRejectOrder(order)}>رفض</Button>
+                                    {order.status === 'new' && (
+                                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white px-4" onClick={() => handleUpdateStatus(order, 'preparing')}>قبول</Button>
+                                    )}
+                                    {order.status === 'preparing' && (
+                                        <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-black px-4" onClick={() => handleUpdateStatus(order, 'ready')}>جاهز</Button>
+                                    )}
+                                    {order.status === 'ready' && order.type === 'delivery' && (
+                                        <Button size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white px-4" onClick={() => { setOrderToAssign(order); setIsAssignDialogOpen(true); }}>إسناد لسائق</Button>
+                                    )}
+                                    {order.status === 'ready' && order.type === 'pickup' && (
+                                        <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white px-4" onClick={() => handleUpdateStatus(order, 'completed')}>تم الاستلام</Button>
+                                    )}
+                                    {effectiveStatus === 'out-for-delivery' && (
+                                        <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white px-4" onClick={() => handleUpdateStatus(order, 'completed')}>تم التوصيل</Button>
+                                    )}
+                                </div>
+                           </CardFooter>
+                        </Card>
+                    )
+                })}
+                 {filteredOrders.length === 0 && !isLoading && (
+                    <div className="col-span-full text-center py-10 text-muted-foreground">
+                        <p>لا توجد طلبات تطابق الفلتر المحدد.</p>
+                    </div>
+                )}
+            </div>
+        </ScrollArea>
+
+        <DialogFooter className="mt-auto p-2 border-t -mx-4 -mb-4">
+            <Button variant="secondary" onClick={onClose}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    
+    {selectedOrder && (
+        <OrderDetailsSheet 
+            isOpen={isSheetOpen}
+            onClose={() => setIsSheetOpen(false)}
+            order={selectedOrder}
+        />
+    )}
+
+    {orderToAssign && (
+        <AssignDriverDialog
+            isOpen={isAssignDialogOpen}
+            onClose={() => { setIsAssignDialogOpen(false); setOrderToAssign(null); }}
+            onAssign={handleAssignDriver}
+            order={orderToAssign}
+        />
+    )}
+
+    {locationToShow && (
+        <DeliveryMapModal
+            isOpen={isMapModalOpen}
+            onClose={() => setIsMapModalOpen(false)}
+            location={locationToShow}
+        />
+    )}
+    
+    {alertContent && (
+      <AlertDialog open={!!alertContent} onOpenChange={() => setAlertContent(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{getActionDetails().title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {getActionDetails().description}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{alertContent.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alertContent.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAction} className={cn(actionType === 'deleteInvoice' || actionType === 'clearList' ? "bg-destructive hover:bg-destructive/90" : "")}>
-              تأكيد
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => setAlertContent(null)}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={alertContent.onConfirm}>تأكيد</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    )}
 
-      <EndOfDayDialog
-        isOpen={isEndOfDayOpen}
-        onClose={() => setIsEndOfDayOpen(false)}
-        onConfirm={handleCloseDay}
-        orders={orders}
-      />
-      
-      <DailySummaryLogModal
-        isOpen={isDailySummaryLogOpen}
-        onClose={() => setIsDailySummaryLogOpen(false)}
-      />
+    <div className="hidden">
+        {orderToPrint && 
+          <PrintOnlineComponent 
+            ref={receiptRef} 
+            order={orderToPrint} 
+            receiptData={{
+                receiptNumber: orderToPrint.id.toString().padStart(3, '0'),
+                date: new Date(orderToPrint.date).toLocaleDateString('en-GB'),
+                time: new Date(orderToPrint.date).toLocaleTimeString('ar-AE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                cashierName: user?.full_name || "Online",
+                paymentMethod: orderToPrint.payment_method as any,
+                logoUrl,
+                barcodeUrl
+            }}
+          />
+        }
+    </div>
 
-      <SummaryReportModal
-        isOpen={isSummaryModalOpen}
-        onClose={() => setIsSummaryModalOpen(false)}
-      />
     </>
   );
 }
+
