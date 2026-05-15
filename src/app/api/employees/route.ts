@@ -34,16 +34,22 @@ export async function POST(request: Request) {
         await client.query('BEGIN');
         const { name, jobTitle, nationalId, salary, currency, hireDate, notes, username, password } = await request.json();
 
-        // Step 1: Create user record
+        // Step 1: Check if phone number already exists
+        const { rows: existingUser } = await client.query('SELECT id FROM users WHERE phone_number = $1', [nationalId]);
+        if (existingUser.length > 0) {
+            return NextResponse.json({ message: 'رقم الجوال مسجل مسبقاً لمستخدم آخر (موظف أو عميل).' }, { status: 409 });
+        }
+
+        // Step 2: Create user record
         const { rows: userRows } = await client.query(
             `INSERT INTO users (full_name, username, phone_number, password_hash, role)
              VALUES ($1, $2, $3, $4, 'employee')
              RETURNING id, full_name as name`,
-            [name, username || `emp_${Date.now()}`, nationalId, password || 'default_password']
+            [name, username || `emp_${nationalId}_${Date.now()}`, nationalId, password || 'default_password']
         );
         const newUser = userRows[0];
 
-        // Step 2: Create user_profile record
+        // Step 3: Create user_profile record
         const { rows: profileRows } = await client.query(
             `INSERT INTO user_profiles (user_id, job_title, national_id, hire_date, salary, currency, notes)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
