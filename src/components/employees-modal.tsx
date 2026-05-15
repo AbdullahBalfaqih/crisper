@@ -87,16 +87,14 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
         ]);
         if (!empRes.ok || !absRes.ok || !advRes.ok || !bonRes.ok) throw new Error('Failed to fetch initial data');
         const [empData, absData, advData, bonData] = await Promise.all([empRes.json(), absRes.json(), advRes.json(), bonRes.json()]);
-
+        
         const typedEmployees: Employee[] = empData.map((e: any) => ({ ...e, salary: parseFloat(e.salary), hireDate: new Date(e.hireDate) }));
         setEmployees(typedEmployees);
         setAbsences(absData.map((a: any) => ({...a, date: new Date(a.date), deduction: parseFloat(a.deduction)})));
         setSalaryPayments(advData.map((a: any) => ({...a, date: new Date(a.date), amount: parseFloat(a.amount)})));
         setBonuses(bonData.map((b: any) => ({...b, date: new Date(b.date), amount: parseFloat(b.amount)})));
 
-        if (typedEmployees.length > 0 && !selectedEmployee) {
-            setSelectedEmployee(typedEmployees[0]);
-        }
+        // Removed auto-selection of the first employee
     } catch (error) {
         toast({ variant: 'destructive', title: 'فشل في جلب البيانات', description: 'لم نتمكن من تحميل بيانات الموظفين.' });
     } finally {
@@ -127,7 +125,16 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
 
   const prepareNewEmployeeForm = () => {
     setSelectedEmployee(null);
-    setEmployeeForm({ hireDate: new Date(), salary: 0, currency: 'ر.ي', name: '', jobTitle: '', nationalId: '', notes: ''});
+    setEmployeeForm({ 
+        hireDate: new Date(), 
+        salary: 0, 
+        currency: 'ر.ي', 
+        name: '', 
+        jobTitle: '', 
+        nationalId: '', 
+        notes: ''
+    });
+    // Also reset sub-forms to be clean for the new employee
     setAbsenceForm({ date: new Date(), reason: '', deduction: 0, currency: 'ر.ي' });
     setAdvanceForm({ date: new Date(), amount: 0, notes: '', currency: 'ر.ي' });
     setBonusForm({ date: new Date(), amount: 0, notes: '', currency: 'ر.ي' });
@@ -563,155 +570,163 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
             </ScrollArea>
             
             {/* Right Panel: Tables */}
-            <div className="md:col-span-2 flex flex-col gap-4 overflow-hidden">
-                 {isLoading ? (
-                    <div className="flex h-full items-center justify-center">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <ScrollArea className="md:col-span-2 h-full pr-4">
+                 <div className="flex flex-col gap-4 pb-4">
+                    {isLoading ? (
+                        <div className="flex h-[400px] items-center justify-center">
+                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                    <>
+                    <div className="rounded-lg overflow-hidden border bg-card min-h-[300px]">
+                        <div className='flex justify-between items-center p-2 border-b bg-muted/30'>
+                            <h3 className='font-semibold'>قائمة الموظفين</h3>
+                            <Button variant="outline" size="sm" onClick={handleExport}><FileDown className="ml-2 h-4 w-4"/>تصدير HTML</Button>
+                        </div>
+                        <div className="max-h-[400px] overflow-auto">
+                            <Table>
+                                <TableHeader><TableRow className="bg-primary hover:bg-primary">
+                                    <TableHead className="text-primary-foreground text-center">الاسم</TableHead>
+                                    <TableHead className="text-primary-foreground text-center">الوظيفة</TableHead>
+                                    <TableHead className="text-primary-foreground text-center">رقم الجوال</TableHead>
+                                    <TableHead className="text-primary-foreground text-center">الراتب</TableHead>
+                                </TableRow></TableHeader>
+                                <TableBody>
+                                {employees.map((emp) => (
+                                    <TableRow key={emp.id} onClick={() => setSelectedEmployee(emp)} className={cn('cursor-pointer hover:bg-primary/5', selectedEmployee?.id === emp.id && 'bg-primary/10')}>
+                                    <TableCell className="text-center font-medium">{emp.name}</TableCell>
+                                    <TableCell className="text-center">{emp.jobTitle}</TableCell>
+                                    <TableCell className="text-center">{emp.nationalId}</TableCell>
+                                    <TableCell className="text-center font-bold">{emp.salary ? emp.salary.toLocaleString('ar-SA') : '0'} {emp.currency}</TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
-                ) : (
-                <>
-                <div className="flex-1 rounded-lg overflow-hidden border bg-card">
-                    <div className='flex justify-between items-center p-2 border-b'>
-                        <h3 className='font-semibold'>قائمة الموظفين</h3>
-                        <Button variant="outline" size="sm" onClick={handleExport}><FileDown className="ml-2 h-4 w-4"/>تصدير HTML</Button>
+                    
+                    <div className="grid lg:grid-cols-3 gap-4">
+                        <div className="lg:col-span-2 flex flex-col gap-4 bg-card p-4 rounded-lg border">
+                            <div className="flex justify-between items-center border-b pb-2">
+                                <h3 className="text-lg font-semibold">سجل الرواتب والغياب</h3>
+                                <div className="flex items-center gap-2">
+                                    <Select
+                                        value={String(getMonth(selectedMonth))}
+                                        onValueChange={(val) => setSelectedMonth(new Date(getYear(selectedMonth), parseInt(val)))}
+                                    >
+                                        <SelectTrigger className="w-[120px] h-8">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Array.from({ length: 12 }).map((_, i) => (
+                                                <SelectItem key={i} value={String(i)}>
+                                                    {format(new Date(2000, i), 'MMMM', { locale: ar })}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={String(getYear(selectedMonth))}
+                                        onValueChange={(val) => setSelectedMonth(new Date(parseInt(val), getMonth(selectedMonth)))}
+                                    >
+                                        <SelectTrigger className="w-[100px] h-8">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Array.from({ length: 5 }).map((_, i) => {
+                                                const year = getYear(new Date()) - i;
+                                                return <SelectItem key={year} value={String(year)}>{year}</SelectItem>;
+                                            })}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Bonuses */}
+                                <div className="flex flex-col gap-2">
+                                    <h4 className="font-semibold text-sm text-center bg-green-50 text-green-700 py-1 rounded">العلاوات</h4>
+                                    <ScrollArea className="h-48 border rounded bg-background p-2">
+                                      {filteredData.bonuses.map(b => (
+                                        <div key={b.id} className="text-sm p-1 border-b">
+                                          <div className="flex justify-between"><span>{b.notes}</span><span className="font-bold text-green-600">+{b.amount.toLocaleString('ar-SA')}</span></div>
+                                           <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(b.date), 'yyyy/MM/dd')}</span><Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openConfirmationDialog('deleteBonus', b)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
+                                        </div>
+                                      ))}
+                                    </ScrollArea>
+                                    <div className="flex gap-1">
+                                        <Input placeholder="المبلغ" type="number" className="h-8 text-xs" value={bonusForm.amount || ''} onChange={e => handleBonusInputChange('amount', e.target.value)} />
+                                        <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8" onClick={() => handleSaveSubRecord('bonus')}><Award size={14}/></Button>
+                                    </div>
+                                </div>
+                                {/* Payroll Advances */}
+                                <div className="flex flex-col gap-2">
+                                    <h4 className="font-semibold text-sm text-center bg-red-50 text-red-700 py-1 rounded">السلف والمدفوعات</h4>
+                                    <ScrollArea className="h-48 border rounded bg-background p-2">
+                                      {filteredData.payments.map(p => (
+                                        <div key={p.id} className="text-sm p-1 border-b">
+                                          <div className="flex justify-between"><span>{p.notes}</span><span className="font-bold text-red-600">-{p.amount.toLocaleString('ar-SA')}</span></div>
+                                           <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(p.date), 'yyyy/MM/dd')}</span><Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openConfirmationDialog('deleteAdvance', p)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
+                                        </div>
+                                      ))}
+                                    </ScrollArea>
+                                    <div className="flex gap-1">
+                                        <Input placeholder="المبلغ" type="number" className="h-8 text-xs" value={advanceForm.amount || ''} onChange={e => handleAdvanceInputChange('amount', e.target.value)} />
+                                        <Button size="sm" className="bg-red-600 hover:bg-red-700 h-8" onClick={() => handleSaveSubRecord('advance')}><HandCoins size={14}/></Button>
+                                    </div>
+                                </div>
+                                {/* Absence Table */}
+                                <div className="flex flex-col gap-2">
+                                    <h4 className="font-semibold text-sm text-center bg-orange-50 text-orange-700 py-1 rounded">سجل الغياب</h4>
+                                    <ScrollArea className="h-48 border rounded bg-background p-2">
+                                      {filteredData.absences.map(abs => (
+                                        <div key={abs.id} className="text-sm p-1 border-b">
+                                          <div className="flex justify-between"><span>{abs.reason}</span><span className="font-bold text-red-600">-{abs.deduction.toLocaleString('ar-SA')}</span></div>
+                                          <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(abs.date), "yyyy/MM/dd")}</span><Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openConfirmationDialog('deleteAbsence', abs)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
+                                        </div>
+                                      ))}
+                                    </ScrollArea>
+                                    <div className="flex flex-col gap-1">
+                                        <Input placeholder="السبب" className="h-8 text-xs" value={absenceForm.reason || ''} onChange={e => handleAbsenceInputChange('reason', e.target.value)} />
+                                        <div className="flex gap-1">
+                                            <Input placeholder="الخصم" type="number" className="h-8 text-xs flex-1" value={absenceForm.deduction || ''} onChange={e => handleAbsenceInputChange('deduction', Number(e.target.value))}/>
+                                            <Button size="sm" className="h-8" onClick={() => handleSaveSubRecord('absence')}>إضافة</Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Payroll Section */}
+                        <div className="flex flex-col gap-3 bg-card p-4 rounded-lg border shadow-sm">
+                            <h3 className="text-lg font-bold text-center border-b pb-2">حساب الراتب</h3>
+                            <div className="space-y-4 text-sm flex-1">
+                                <div className="flex justify-between items-center"><span className="text-muted-foreground">الراتب الأساسي:</span> <span className="font-bold text-base">{(selectedEmployee?.salary || 0).toLocaleString('ar-SA')} {selectedEmployee?.currency}</span></div>
+                                <div className="flex justify-between items-center text-green-600"><span className="text-muted-foreground">إجمالي العلاوات:</span> <span className="font-bold">+{totalBonuses.toLocaleString('ar-SA')}</span></div>
+                                <div className="flex justify-between items-center text-red-600"><span className="text-muted-foreground">إجمالي الخصومات:</span> <span className="font-bold">-{totalDeductions.toLocaleString('ar-SA')}</span></div>
+                                <div className="flex justify-between items-center text-orange-600"><span className="text-muted-foreground">إجمالي السلف:</span> <span className="font-bold">-{totalAdvances.toLocaleString('ar-SA')}</span></div>
+                                <hr className="border-dashed"/>
+                                <div className="flex flex-col items-center gap-1 p-3 bg-green-50 rounded-lg border border-green-100">
+                                    <span className="text-sm text-green-700">صافي الراتب المستحق:</span>
+                                    <span className="text-2xl font-black text-green-600">{netSalary.toLocaleString('ar-SA')} {selectedEmployee?.currency}</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2 mt-4">
+                                 {isSalaryPaidForMonth ? (
+                                    <div className="flex items-center justify-center gap-2 text-green-700 font-bold p-3 bg-green-100 rounded-lg border border-green-200">
+                                        <CheckCircle size={20}/>
+                                        <span>تم صرف راتب الشهر</span>
+                                    </div>
+                                 ) : (
+                                    <Button className="w-full h-12 text-lg font-bold shadow-lg" onClick={() => openConfirmationDialog('paySalary', null)} disabled={isSalaryPaidForMonth}>صرف الراتب الآن</Button>
+                                 )}
+                                <Button variant="outline" className="w-full" onClick={handlePrint}><Printer className="ml-2 h-4 w-4"/> طباعة السجل</Button>
+                                <Button variant="ghost" className="w-full" onClick={onClose}>إغلاق</Button>
+                            </div>
+                        </div>
                     </div>
-                    <ScrollArea className="h-full">
-                        <Table>
-                            <TableHeader><TableRow className="hover:bg-muted/50 bg-primary">
-                                <TableHead className="text-primary-foreground text-center">الاسم</TableHead>
-                                <TableHead className="text-primary-foreground text-center">الوظيفة</TableHead>
-                                <TableHead className="text-primary-foreground text-center">رقم الجوال</TableHead>
-                                <TableHead className="text-primary-foreground text-center">الراتب</TableHead>
-                            </TableRow></TableHeader>
-                            <TableBody>
-                            {employees.map((emp) => (
-                                <TableRow key={emp.id} onClick={() => setSelectedEmployee(emp)} className={cn('cursor-pointer', selectedEmployee?.id === emp.id && 'bg-primary/20')}>
-                                <TableCell className="text-center">{emp.name}</TableCell>
-                                <TableCell className="text-center">{emp.jobTitle}</TableCell>
-                                <TableCell className="text-center">{emp.nationalId}</TableCell>
-                                <TableCell className="text-center">{emp.salary ? emp.salary.toLocaleString('ar-SA') : '0'} {emp.currency}</TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
+                    </>
+                    )}
                 </div>
-                 <div className="grid md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2 flex flex-col gap-4 bg-card p-4 rounded-lg border">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-semibold">سجل الرواتب والغياب</h3>
-                            <div className="flex items-center gap-2">
-                                <Select
-                                    value={String(getMonth(selectedMonth))}
-                                    onValueChange={(val) => setSelectedMonth(new Date(getYear(selectedMonth), parseInt(val)))}
-                                >
-                                    <SelectTrigger className="w-[150px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Array.from({ length: 12 }).map((_, i) => (
-                                            <SelectItem key={i} value={String(i)}>
-                                                {format(new Date(2000, i), 'MMMM', { locale: ar })}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Select
-                                    value={String(getYear(selectedMonth))}
-                                    onValueChange={(val) => setSelectedMonth(new Date(parseInt(val), getMonth(selectedMonth)))}
-                                >
-                                    <SelectTrigger className="w-[120px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Array.from({ length: 5 }).map((_, i) => {
-                                            const year = getYear(new Date()) - i;
-                                            return <SelectItem key={year} value={String(year)}>{year}</SelectItem>;
-                                        })}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
-                            {/* Bonuses */}
-                            <div className="flex flex-col gap-2">
-                                <h4 className="font-semibold">العلاوات</h4>
-                                <ScrollArea className="h-40 border rounded bg-background p-2">
-                                  {filteredData.bonuses.map(b => (
-                                    <div key={b.id} className="text-sm p-1 border-b">
-                                      <div className="flex justify-between"><span>{b.notes}</span><span className="font-bold text-green-500">+{b.amount.toLocaleString('ar-SA')} {b.currency}</span></div>
-                                       <div className="flex justify-between text-xs text-muted-foreground"><span>{format(new Date(b.date), 'yyyy/MM/dd')}</span><Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => openConfirmationDialog('deleteBonus', b)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
-                                    </div>
-                                  ))}
-                                </ScrollArea>
-                                <div className="flex gap-2">
-                                    <Input placeholder="المبلغ" type="number" value={bonusForm.amount || ''} onChange={e => handleBonusInputChange('amount', e.target.value)} />
-                                    <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleSaveSubRecord('bonus')}><Award size={16}/></Button>
-                                </div>
-                            </div>
-                            {/* Payroll Advances */}
-                            <div className="flex flex-col gap-2">
-                                <h4 className="font-semibold">السلف والمدفوعات</h4>
-                                <ScrollArea className="h-40 border rounded bg-background p-2">
-                                  {filteredData.payments.map(p => (
-                                    <div key={p.id} className="text-sm p-1 border-b">
-                                      <div className="flex justify-between"><span>{p.notes}</span><span className="font-bold text-red-500">-{p.amount.toLocaleString('ar-SA')} {p.currency}</span></div>
-                                       <div className="flex justify-between text-xs text-muted-foreground"><span>{format(new Date(p.date), 'yyyy/MM/dd')}</span><Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => openConfirmationDialog('deleteAdvance', p)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
-                                    </div>
-                                  ))}
-                                </ScrollArea>
-                                <div className="flex gap-2">
-                                    <Input placeholder="المبلغ" type="number" value={advanceForm.amount || ''} onChange={e => handleAdvanceInputChange('amount', e.target.value)} />
-                                    <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleSaveSubRecord('advance')}><HandCoins size={16}/></Button>
-                                </div>
-                            </div>
-                            {/* Absence Table */}
-                            <div className="flex flex-col gap-2">
-                                <h4 className="font-semibold">سجل الغياب</h4>
-                                <ScrollArea className="h-40 border rounded bg-background p-2">
-                                  {filteredData.absences.map(abs => (
-                                    <div key={abs.id} className="text-sm p-1 border-b">
-                                      <div className="flex justify-between"><span>{abs.reason}</span><span className="font-bold text-red-500">-{abs.deduction.toLocaleString('ar-SA')} {abs.currency}</span></div>
-                                      <div className="flex justify-between text-xs text-muted-foreground"><span>{format(new Date(abs.date), "yyyy/MM/dd")}</span><Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => openConfirmationDialog('deleteAbsence', abs)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
-                                    </div>
-                                  ))}
-                                </ScrollArea>
-                                <div className="flex gap-2">
-                                    <Input placeholder="السبب" value={absenceForm.reason || ''} onChange={e => handleAbsenceInputChange('reason', e.target.value)} />
-                                    <Input placeholder="الخصم" type="number" value={absenceForm.deduction || ''} onChange={e => handleAbsenceInputChange('deduction', Number(e.target.value))} className="w-24"/>
-                                    <Button onClick={() => handleSaveSubRecord('absence')}>إضافة غياب</Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {/* Payroll Section */}
-                    <div className="md:col-span-1 flex flex-col gap-2 bg-card p-4 rounded-lg border">
-                        <h3 className="text-lg font-semibold text-center mb-2">حساب الراتب</h3>
-                        <div className="space-y-3 text-sm flex-1">
-                            <div className="flex justify-between"><span>الراتب الأساسي:</span> <span className="font-bold">{(selectedEmployee?.salary || 0).toLocaleString('ar-SA')} {selectedEmployee?.currency}</span></div>
-                            <div className="flex justify-between text-green-500"><span>إجمالي العلاوات:</span> <span className="font-bold">+{totalBonuses.toLocaleString('ar-SA')} {selectedEmployee?.currency}</span></div>
-                            <div className="flex justify-between text-red-500"><span>إجمالي الخصومات:</span> <span className="font-bold">-{totalDeductions.toLocaleString('ar-SA')} {selectedEmployee?.currency}</span></div>
-                            <div className="flex justify-between text-yellow-600"><span>إجمالي السلف:</span> <span className="font-bold">-{totalAdvances.toLocaleString('ar-SA')} {selectedEmployee?.currency}</span></div>
-                            <hr className="my-2 border-border"/>
-                            <div className="flex justify-between font-bold text-lg text-green-600"><span>صافي الراتب المستحق:</span> <span>{netSalary.toLocaleString('ar-SA')} {selectedEmployee?.currency}</span></div>
-                        </div>
-                        <div className="mt-auto flex flex-col gap-2">
-                             {isSalaryPaidForMonth ? (
-                                <div className="flex items-center justify-center gap-2 text-green-600 font-semibold p-2 bg-green-100 rounded-md">
-                                    <CheckCircle size={20}/>
-                                    <span>تم صرف الراتب لهذا الشهر</span>
-                                </div>
-                             ) : (
-                                <Button className="bg-primary hover:bg-primary/90" onClick={() => openConfirmationDialog('paySalary', null)} disabled={isSalaryPaidForMonth}>صرف الراتب</Button>
-                             )}
-                            <Button onClick={handlePrint}><Printer className="ml-2"/> طباعة سجل الموظف</Button>
-                            <Button variant="secondary" onClick={onClose}>رجوع</Button>
-                        </div>
-                    </div>
-                </div>
-                </>
-                )}
-            </div>
+            </ScrollArea>
           </div>
         </DialogContent>
       </Dialog>
