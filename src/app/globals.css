@@ -85,3 +85,6 @@
     font-family: 'Almarai', sans-serif;
   }
 }
+body[style] {
+  pointer-events: auto !important;
+}
