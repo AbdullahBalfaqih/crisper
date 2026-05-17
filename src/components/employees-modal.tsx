@@ -495,7 +495,14 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-[95vw] h-[95vh] flex flex-col p-4">
+        <DialogContent 
+          className="max-w-[95vw] h-[95vh] flex flex-col p-4"
+          onInteractOutside={(e) => {
+            if (isAlertOpen) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader className="bg-primary text-primary-foreground p-4 -m-4 mb-2">
             <DialogTitle className="text-2xl">الموظفين</DialogTitle>
           </DialogHeader>
@@ -559,7 +566,7 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
                         <div className="flex gap-2">
                             <Button onClick={prepareNewEmployeeForm} className="flex-1"><UserPlus className="ml-2 h-4 w-4"/>موظف جديد</Button>
                             {selectedEmployee && (
-                            <Button variant="destructive" onClick={() => openConfirmationDialog('deleteEmployee', selectedEmployee)}>
+                            <Button type="button" variant="destructive" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openConfirmationDialog('deleteEmployee', selectedEmployee); }}>
                                     <Trash2 className="ml-2 h-4 w-4" />
                                     حذف
                             </Button>
@@ -649,7 +656,7 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
                                       {filteredData.bonuses.map(b => (
                                         <div key={b.id} className="text-sm p-1 border-b">
                                           <div className="flex justify-between"><span>{b.notes}</span><span className="font-bold text-green-600">+{b.amount.toLocaleString('ar-SA')}</span></div>
-                                           <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(b.date), 'yyyy/MM/dd')}</span><Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openConfirmationDialog('deleteBonus', b)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
+                                           <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(b.date), 'yyyy/MM/dd')}</span><Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openConfirmationDialog('deleteBonus', b); }}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
                                         </div>
                                       ))}
                                     </ScrollArea>
@@ -665,7 +672,7 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
                                       {filteredData.payments.map(p => (
                                         <div key={p.id} className="text-sm p-1 border-b">
                                           <div className="flex justify-between"><span>{p.notes}</span><span className="font-bold text-red-600">-{p.amount.toLocaleString('ar-SA')}</span></div>
-                                           <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(p.date), 'yyyy/MM/dd')}</span><Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openConfirmationDialog('deleteAdvance', p)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
+                                           <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(p.date), 'yyyy/MM/dd')}</span><Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openConfirmationDialog('deleteAdvance', p); }}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
                                         </div>
                                       ))}
                                     </ScrollArea>
@@ -681,7 +688,7 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
                                       {filteredData.absences.map(abs => (
                                         <div key={abs.id} className="text-sm p-1 border-b">
                                           <div className="flex justify-between"><span>{abs.reason}</span><span className="font-bold text-red-600">-{abs.deduction.toLocaleString('ar-SA')}</span></div>
-                                          <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(abs.date), "yyyy/MM/dd")}</span><Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openConfirmationDialog('deleteAbsence', abs)}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
+                                          <div className="flex justify-between text-[10px] text-muted-foreground items-center"><span>{format(new Date(abs.date), "yyyy/MM/dd")}</span><Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openConfirmationDialog('deleteAbsence', abs); }}><Trash2 className="h-3 w-3 text-red-500" /></Button></div>
                                         </div>
                                       ))}
                                     </ScrollArea>
@@ -716,7 +723,7 @@ export function EmployeesModal({ isOpen, onClose }: EmployeesModalProps) {
                                         <span>تم صرف راتب الشهر</span>
                                     </div>
                                  ) : (
-                                    <Button className="w-full h-12 text-lg font-bold shadow-lg" onClick={() => openConfirmationDialog('paySalary', null)} disabled={isSalaryPaidForMonth}>صرف الراتب الآن</Button>
+                                    <Button type="button" className="w-full h-12 text-lg font-bold shadow-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openConfirmationDialog('paySalary', null); }} disabled={isSalaryPaidForMonth}>صرف الراتب الآن</Button>
                                  )}
                                 <Button variant="outline" className="w-full" onClick={handlePrint}><Printer className="ml-2 h-4 w-4"/> طباعة السجل</Button>
                                 <Button variant="ghost" className="w-full" onClick={onClose}>إغلاق</Button>
