@@ -1,0 +1,58 @@
+{
+  "placeholderImages": [
+    {
+      "id": "meal-1",
+      "description": "A delicious cheeseburger with fries",
+      "imageUrl": "https://images.unsplash.com/photo-1654385166609-d21d3b576a2e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y2hlZXNlYnVyZ2VyJTIwZnJpZXN8ZW58MHx8fHwxNzU4NjkyMTE5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cheeseburger fries"
+    },
+    {
+      "id": "meal-2",
+      "description": "A healthy chicken salad",
+      "imageUrl": "https://images.unsplash.com/photo-1604909052743-94e838986d24?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjaGlja2VuJTIwc2FsYWR8ZW58MHx8fHwxNzU4NjEwNjExfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chicken salad"
+    },
+    {
+      "id": "meal-3",
+      "description": "Spaghetti bolognese",
+      "imageUrl": "https://images.unsplash.com/photo-1622973536968-3ead9e780960?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzcGFnaGV0dGklMjBib2xvZ25lc2V8ZW58MHx8fHwxNzU4Njk1NDU3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "spaghetti bolognese"
+    },
+    {
+      "id": "drink-1",
+      "description": "A refreshing glass of iced tea",
+      "imageUrl": "https://images.unsplash.com/photo-1656936611703-a1ede070073c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8aWNlZCUyMHRlYXxlbnwwfHx8fDE3NTg2OTE2MDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "iced tea"
+    },
+    {
+      "id": "drink-2",
+      "description": "A cup of hot coffee",
+      "imageUrl": "https://images.unsplash.com/photo-1502462041640-b3d7e50d0662?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjb2ZmZWUlMjBjdXB8ZW58MHx8fHwxNzU4NjYyOTU2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "coffee cup"
+    },
+    {
+      "id": "drink-3",
+      "description": "A glass of fresh orange juice",
+      "imageUrl": "https://images.unsplash.com/photo-1587015990127-424b954e38b5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8b3JhbmdlJTIwanVpY2V8ZW58MHx8fHwxNzU4NzExNjkzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "orange juice"
+    },
+    {
+      "id": "dessert-1",
+      "description": "A slice of chocolate cake",
+      "imageUrl": "https://images.unsplash.com/photo-1605807646983-377bc5a76493?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjaG9jb2xhdGUlMjBjYWtlfGVufDB8fHx8MTc1ODU4NTg5NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chocolate cake"
+    },
+    {
+      "id": "dessert-2",
+      "description": "A scoop of vanilla ice cream",
+      "imageUrl": "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxpY2UlMjBjcmVhbXxlbnwwfHx8fDE3NTg2OTE2MDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "ice cream"
+    },
+    {
+      "id": "dessert-3",
+      "description": "A fresh fruit salad",
+      "imageUrl": "https://images.unsplash.com/photo-1658431618300-a69b07fb5782?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxmcnVpdCUyMHNhbGFkfGVufDB8fHx8MTc1ODY0NDQ2MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fruit salad"
+    }
+  ]
+}
